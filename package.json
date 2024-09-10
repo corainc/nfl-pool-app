@@ -1,0 +1,12 @@
+{
+  "name": "nfl-data-gatherer",
+  "version": "1.0.0",
+  "description": "Azure Function for gathering NFL data",
+    "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "mssql": "^11.0.1"
+  }
+}
