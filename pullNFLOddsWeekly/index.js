@@ -12,11 +12,47 @@ function formatOdds(value) {
 
 // Main function to pull NFL odds and insert into the database
 module.exports = async function (context, myTimer) {
-    const week = 1; // For simplicity, manually setting to week 1. You may adjust dynamically as needed.
+    const nflWeekEndDates = [
+    new Date("2024-09-09"),  // Week 1 ends
+    new Date("2024-09-16"),  // Week 2 ends
+    new Date("2024-09-23"),  // Week 3 ends
+    new Date("2024-09-30"),  // Week 4 ends
+    new Date("2024-10-07"),  // Week 5 ends
+    new Date("2024-10-14"),  // Week 6 ends
+    new Date("2024-10-21"),  // Week 7 ends
+    new Date("2024-10-28"),  // Week 8 ends
+    new Date("2024-11-04"),  // Week 9 ends
+    new Date("2024-11-11"),  // Week 10 ends
+    new Date("2024-11-18"),  // Week 11 ends
+    new Date("2024-11-25"),  // Week 12 ends
+    new Date("2024-12-02"),  // Week 13 ends
+    new Date("2024-12-09"),  // Week 14 ends
+    new Date("2024-12-16"),  // Week 15 ends
+    new Date("2024-12-23"),  // Week 16 ends
+    new Date("2024-12-30"),  // Week 17 ends
+    new Date("2025-01-06")   // Week 18 ends
+];
+
+function getCurrentNFLWeek() {
+    const currentDate = new Date();
+
+    // Loop through each week end date to find where the current date fits
+    for (let i = 0; i < nflWeekEndDates.length; i++) {
+        if (currentDate <= nflWeekEndDates[i]) {
+            return i + 1; // Weeks are 1-based
+        }
+    }
+
+    return 18; // Default to week 18 if past all weeks
+}
+
+const currentNFLWeek = getCurrentNFLWeek();
+
+console.log(`Current NFL Week: ${currentNFLWeek}`);
     context.log('NFL Weekly Game Odds Data Triggered!');
 
     // Step 1: Fetch Data from MySportsFeeds API
-    const apiUrl = `https://api.mysportsfeeds.com/v2.1/pull/nfl/2024-2025-regular/week/${week}/odds_gamelines.json?source=bovada`;
+    const apiUrl = `https://api.mysportsfeeds.com/v2.1/pull/nfl/2024-2025-regular/week/${currentNFLWeek}/odds_gamelines.json?source=bovada`;
     try {
         const response = await axios.get(apiUrl, {
             headers: {
