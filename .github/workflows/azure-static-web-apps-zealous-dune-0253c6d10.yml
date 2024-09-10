@@ -34,7 +34,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
           action: "upload"
           app_location: "/" # Adjust this if your front-end code is in a subdirectory
-          api_location: "/api" # Set the correct path to your API functions
+          api_location: "/" # Set the correct path to your API functions
           output_location: "" # Adjust if necessary
 
   close_pull_request_job:
