@@ -135,6 +135,7 @@ async function insertGameLineIntoDatabase(context, game, gameLine) {
 
     const latestBovadaLine = bovadaLines[0]; // Assuming the first one is the latest
 
+    // Corrected property paths
     const moneyLine = latestBovadaLine.moneyLines?.find(ml => ml.moneyLine.gameSegment === 'FULL');
     const pointSpread = latestBovadaLine.pointSpreads?.find(ps => ps.pointSpread.gameSegment === 'FULL');
     const overUnder = latestBovadaLine.overUnders?.find(ou => ou.overUnder.gameSegment === 'FULL');
@@ -144,7 +145,7 @@ async function insertGameLineIntoDatabase(context, game, gameLine) {
         moneyLineHome: parseMoneyLine(moneyLine?.moneyLine?.homeLine?.american),
         pointSpreadAway: parseFloatValue(pointSpread?.pointSpread?.awaySpread),
         pointSpreadHome: parseFloatValue(pointSpread?.pointSpread?.homeSpread),
-        overUnder: parseFloatValue(overUnder?.overUnder?.total),
+        overUnder: parseFloatValue(overUnder?.overUnder?.overUnder), // Corrected here
         sourceName: 'Bovada'
     };
 
