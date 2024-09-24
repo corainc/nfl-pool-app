@@ -48,42 +48,42 @@ module.exports = async function (context, myTimer) {
             // Prepare team data
             const teamData = {
                 TeamID: teamInfo.id,
-                City: teamInfo.city || null,
-                Name: teamInfo.name || null,
-                Abbreviation: teamInfo.abbreviation || null,
-                HomeVenueID: teamInfo.homeVenue?.id || null,
+                City: teamInfo.city ?? null,
+                Name: teamInfo.name ?? null,
+                Abbreviation: teamInfo.abbreviation ?? null,
+                HomeVenueID: teamInfo.homeVenue?.id ?? null,
                 TeamColorsHex: teamInfo.teamColoursHex ? teamInfo.teamColoursHex.join(', ') : null,
                 SocialMedia: teamInfo.socialMediaAccounts ? teamInfo.socialMediaAccounts.map(account => `${account.mediaType}: ${account.value}`).join(', ') : null,
-                LogoURL: teamInfo.officialLogoImageSrc || null
+                LogoURL: teamInfo.officialLogoImageSrc ?? null
             };
 
-            // Prepare team stats data
+            // Prepare team stats data with corrected property paths and use of ?? operator
             const teamStats = {
                 TeamID: teamInfo.id,
-                GamesPlayed: stats?.gamesPlayed || 0,
-                Wins: stats?.standings?.wins || 0,
-                Losses: stats?.standings?.losses || 0,
-                PointsFor: stats?.scoring?.pointsFor || 0,
-                PointsAgainst: stats?.scoring?.pointsAgainst || 0,
-                PassingAttempts: stats?.passing?.passAttempts || 0,
-                PassingCompletions: stats?.passing?.passCompletions || 0,
-                PassingYards: stats?.passing?.passNetYards || 0,
-                RushingAttempts: stats?.rushing?.rushAttempts || 0,
-                RushingYards: stats?.rushing?.rushYards || 0,
-                ReceivingYards: stats?.receiving?.recYards || 0,
-                Tackles: stats?.defense?.tackleSolo || 0,
-                Interceptions: stats?.defense?.interceptions || 0,
-                Fumbles: stats?.fumbles?.fumLost || 0,
-                KickoffReturns: stats?.kickoffReturns?.krRet || 0,
-                PuntReturns: stats?.puntReturns?.prRet || 0,
-                FieldGoalsMade: stats?.fieldGoals?.fgMade || 0,
-                FieldGoalsAttempted: stats?.fieldGoals?.fgAtt || 0,
-                ExtraPointsMade: stats?.extraPoints?.xpMade || 0,
-                ExtraPointsAttempted: stats?.extraPoints?.xpAtt || 0,
-                OffensePlays: stats?.offense?.plays || 0,
-                OffenseYards: stats?.offense?.yards || 0,
-                OffenseAvgYardsPerPlay: stats?.offense?.avgYards || 0.0,
-                TotalTD: stats?.scoring?.tds || 0
+                GamesPlayed: stats?.gamesPlayed ?? 0,
+                Wins: stats?.standings?.wins ?? 0,
+                Losses: stats?.standings?.losses ?? 0,
+                PointsFor: stats?.standings?.pointsFor ?? 0,
+                PointsAgainst: stats?.standings?.pointsAgainst ?? 0,
+                PassingAttempts: stats?.passing?.passAttempts ?? 0,
+                PassingCompletions: stats?.passing?.passCompletions ?? 0,
+                PassingYards: stats?.passing?.passNetYards ?? 0,
+                RushingAttempts: stats?.rushing?.rushAttempts ?? 0,
+                RushingYards: stats?.rushing?.rushYards ?? 0,
+                ReceivingYards: stats?.receiving?.recYards ?? 0,
+                Tackles: stats?.tackles?.tackleSolo ?? 0,
+                Interceptions: stats?.interceptions?.interceptions ?? 0,
+                Fumbles: stats?.fumbles?.fumLost ?? 0,
+                KickoffReturns: stats?.kickoffReturns?.krRet ?? 0,
+                PuntReturns: stats?.puntReturns?.prRet ?? 0,
+                FieldGoalsMade: stats?.fieldGoals?.fgMade ?? 0,
+                FieldGoalsAttempted: stats?.fieldGoals?.fgAtt ?? 0,
+                ExtraPointsMade: stats?.extraPointAttempt?.xpMade ?? 0,
+                ExtraPointsAttempted: stats?.extraPointAttempt?.xpAtt ?? 0,
+                OffensePlays: stats?.miscellaneous?.offensePlays ?? 0,
+                OffenseYards: stats?.miscellaneous?.offenseYds ?? 0,
+                OffenseAvgYardsPerPlay: stats?.miscellaneous?.offenseAvgYds ?? 0.0,
+                TotalTD: stats?.miscellaneous?.totalTD ?? 0
             };
 
             // Insert or update Teams table
@@ -112,7 +112,7 @@ async function insertOrUpdateTeam(context, team) {
         request.input('Abbreviation', sql.NVarChar(10), team.Abbreviation);
         request.input('HomeVenueID', sql.Int, team.HomeVenueID);
         request.input('TeamColorsHex', sql.NVarChar(255), team.TeamColorsHex);
-        request.input('SocialMedia', sql.NVarChar(100), team.SocialMedia);
+        request.input('SocialMedia', sql.NVarChar(255), team.SocialMedia); // Increased length
         request.input('LogoURL', sql.NVarChar(255), team.LogoURL);
 
         const teamQuery = `
