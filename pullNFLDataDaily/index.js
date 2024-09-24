@@ -1,3 +1,5 @@
+// pullNFLDataDaily/index.js
+
 const axios = require('axios');
 const { DefaultAzureCredential } = require('@azure/identity');
 const sql = require('mssql');
@@ -44,7 +46,7 @@ module.exports = async function (context, myTimer) {
 
         // Implement retry logic for database connection
         context.log("Attempting to connect to the database with retries...");
-        await connectWithRetry(sqlConfig);
+        await connectWithRetry(sqlConfig, context);
 
         for (const game of games) {
             const { schedule, score } = game;
@@ -61,8 +63,8 @@ module.exports = async function (context, myTimer) {
             const originalStartTime = schedule.originalStartTime ? new Date(schedule.originalStartTime).toISOString() : null;
 
             // Extract scores if available
-            const awayScoreTotal = score?.awayScoreTotal || null;
-            const homeScoreTotal = score?.homeScoreTotal || null;
+            const awayScoreTotal = score?.awayScoreTotal ?? null;
+            const homeScoreTotal = score?.homeScoreTotal ?? null;
 
             // Create a new SQL request
             const request = new sql.Request();
@@ -73,11 +75,11 @@ module.exports = async function (context, myTimer) {
             request.input('AwayTeamID', sql.Int, schedule.awayTeam.id);
             request.input('HomeTeamID', sql.Int, schedule.homeTeam.id);
             request.input('VenueID', sql.Int, schedule.venue.id || null);
-            request.input('VenueAllegiance', sql.VarChar, schedule.venueAllegiance || null);
-            request.input('ScheduleStatus', sql.VarChar, schedule.scheduleStatus);
+            request.input('VenueAllegiance', sql.NVarChar(10), schedule.venueAllegiance || null);
+            request.input('ScheduleStatus', sql.NVarChar(50), schedule.scheduleStatus || null);
             request.input('OriginalStartTime', sql.DateTime, originalStartTime);
-            request.input('DelayedOrPostponedReason', sql.VarChar, schedule.delayedOrPostponedReason || null);
-            request.input('PlayedStatus', sql.VarChar, schedule.playedStatus);
+            request.input('DelayedOrPostponedReason', sql.NVarChar(255), schedule.delayedOrPostponedReason || null);
+            request.input('PlayedStatus', sql.NVarChar(50), schedule.playedStatus || null);
             request.input('AwayScoreTotal', sql.Int, awayScoreTotal);
             request.input('HomeScoreTotal', sql.Int, homeScoreTotal);
 
@@ -132,23 +134,23 @@ module.exports = async function (context, myTimer) {
     } finally {
         await sql.close();
     }
+};
 
-    // Function to handle database connection with retries
-    async function connectWithRetry(config, retries = 5, delay = 5000) {
-        for (let attempt = 1; attempt <= retries; attempt++) {
-            try {
-                await sql.connect(config);
-                context.log('Connected to the database successfully.');
-                return;
-            } catch (err) {
-                context.log(`Database connection attempt ${attempt} failed.`);
-                if (attempt < retries) {
-                    context.log(`Retrying in ${delay / 1000} seconds...`);
-                    await new Promise(res => setTimeout(res, delay));
-                } else {
-                    throw err;
-                }
+// Function to handle database connection with retries
+async function connectWithRetry(config, context, retries = 5, delay = 5000) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            await sql.connect(config);
+            context.log('Connected to the database successfully.');
+            return;
+        } catch (err) {
+            context.log(`Database connection attempt ${attempt} failed: ${err.message}`);
+            if (attempt < retries) {
+                context.log(`Retrying in ${delay / 1000} seconds...`);
+                await new Promise(res => setTimeout(res, delay));
+            } else {
+                throw err;
             }
         }
     }
-};
+}
