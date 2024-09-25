@@ -29,8 +29,25 @@ module.exports = async function (context, req) {
         await connectWithRetry(sqlConfig, context);
         context.log('Connected to database successfully.');
 
-        // Query to fetch draft picks
-        const result = await sql.query`SELECT * FROM DraftPicks ORDER BY PickNumber ASC`;
+        // Updated query to fetch draft picks with necessary joins
+        const result = await sql.query`
+            SELECT
+                dp.PickID,
+                dp.PickPosition,
+                u.UserID,
+                u.UserName,
+                t.TeamID,
+                t.Name AS TeamName,
+                t.Abbreviation
+            FROM
+                DraftPicks dp
+            JOIN
+                Users u ON dp.UserID = u.UserID
+            JOIN
+                Teams t ON dp.TeamID = t.TeamID
+            ORDER BY
+                dp.PickPosition ASC;
+        `;
         context.log(`Draft picks data retrieved: ${result.recordset.length} records found.`);
 
         context.res = {
@@ -70,3 +87,4 @@ async function connectWithRetry(sqlConfig, context, maxRetries = 5, retryDelay =
         attempt++;
     }
 }
+
