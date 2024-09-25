@@ -29,11 +29,27 @@ module.exports = async function (context, req) {
         await connectWithRetry(sqlConfig, context);
         context.log('Connected to database successfully.');
 
-        // Query to fetch standings
+        // Updated query to fetch standings with necessary joins
         const result = await sql.query`
-            SELECT TeamID, City, Name, Abbreviation, Wins, Losses, Ties, WinPct, PointsFor, PointsAgainst, PointDifferential
-            FROM Standings
-            ORDER BY WinPct DESC, PointsFor DESC
+            SELECT
+                s.TeamID,
+                t.City,
+                t.Name AS TeamName,
+                t.Abbreviation,
+                s.Wins,
+                s.Losses,
+                s.Ties,
+                s.WinPct,
+                s.PointsFor,
+                s.PointsAgainst,
+                s.PointDifferential
+            FROM
+                Standings s
+            JOIN
+                Teams t ON s.TeamID = t.TeamID
+            ORDER BY
+                s.WinPct DESC,
+                s.PointDifferential DESC;
         `;
         context.log(`Standings data retrieved: ${result.recordset.length} records found.`);
 
