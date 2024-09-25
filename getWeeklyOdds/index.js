@@ -34,14 +34,34 @@ module.exports = async function (context, req) {
         let week = req.query.week ? parseInt(req.query.week) : getCurrentNFLWeek();
         context.log(`Using NFL Week: ${week}`);
 
-        // Query to get the latest weekly odds from the GameLines table
+        // Updated query to get the latest weekly odds from the GameLines table with team names
         const query = `
-            SELECT GameLineID, GameID, Week, StartTime, AwayTeamAbbreviation, HomeTeamAbbreviation, 
-                   sourceName, moneyLineAway, moneyLineHome, pointSpreadAway, pointSpreadHome, 
-                   overUnder, dateFetched
-            FROM GameLines
-            WHERE Week = @week
-            ORDER BY StartTime;
+            SELECT
+                gl.GameLineID,
+                gl.GameID,
+                gl.Week,
+                gl.StartTime,
+                gl.AwayTeamAbbreviation,
+                awayTeam.Name AS AwayTeamName,
+                gl.HomeTeamAbbreviation,
+                homeTeam.Name AS HomeTeamName,
+                gl.sourceName,
+                gl.moneyLineAway,
+                gl.moneyLineHome,
+                gl.pointSpreadAway,
+                gl.pointSpreadHome,
+                gl.overUnder,
+                gl.dateFetched
+            FROM
+                GameLines gl
+            LEFT JOIN
+                Teams awayTeam ON gl.AwayTeamAbbreviation = awayTeam.Abbreviation
+            LEFT JOIN
+                Teams homeTeam ON gl.HomeTeamAbbreviation = homeTeam.Abbreviation
+            WHERE
+                gl.Week = @week
+            ORDER BY
+                gl.StartTime;
         `;
 
         const request = new sql.Request();
