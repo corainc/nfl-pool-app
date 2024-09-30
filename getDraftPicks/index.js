@@ -6,7 +6,8 @@ module.exports = async function (context, req) {
 
     try {
         // Fetch token using managed identity
-        const token = await new DefaultAzureCredential().getToken('https://database.windows.net/');
+        const credential = new DefaultAzureCredential();
+        const token = await credential.getToken('https://database.windows.net/');
 
         const sqlConfig = {
             server: process.env.SQLSERVER,
@@ -16,32 +17,74 @@ module.exports = async function (context, req) {
                 enableArithAbort: true,
             },
             authentication: {
-                type: 'azure-active-directory-msi-app-service',
+                type: 'azure-active-directory-access-token',
                 options: {
                     token: token.token,
                 },
             },
         };
 
-        // Establish SQL connection
-        await sql.connect(sqlConfig);
+        // Establish SQL connection with retries
+        context.log('Attempting to connect to the database...');
+        await connectWithRetry(sqlConfig, context);
         context.log('Connected to database successfully.');
 
-        // Query to fetch draft picks
-        const result = await sql.query`SELECT * FROM DraftPicks`;
+        // Updated query to fetch draft picks with necessary joins
+        const result = await sql.query`
+            SELECT
+                dp.PickID,
+                dp.PickPosition,
+                u.UserID,
+                u.UserName,
+                t.TeamID,
+                t.Name AS TeamName,
+                t.Abbreviation
+            FROM
+                DraftPicks dp
+            JOIN
+                Users u ON dp.UserID = u.UserID
+            JOIN
+                Teams t ON dp.TeamID = t.TeamID
+            ORDER BY
+                dp.PickPosition ASC;
+        `;
         context.log(`Draft picks data retrieved: ${result.recordset.length} records found.`);
 
         context.res = {
             status: 200,
+            headers: { 'Content-Type': 'application/json' },
             body: result.recordset,
         };
     } catch (err) {
-        context.log(`Error fetching draft picks: ${err.message}`);
+        context.log.error(`Error fetching draft picks: ${err.message}`);
         context.res = {
             status: 500,
-            body: `Error: ${err.message}`,
+            body: `Error fetching draft picks: ${err.message}`,
         };
     } finally {
-        sql.close(); // Ensure the SQL connection is closed
+        await sql.close(); // Ensure the SQL connection is closed
     }
 };
+
+// Function to connect with retries
+async function connectWithRetry(sqlConfig, context, maxRetries = 5, retryDelay = 5000) {
+    let attempt = 1;
+    while (attempt <= maxRetries) {
+        try {
+            await sql.connect(sqlConfig);
+            context.log(`Database connection established on attempt ${attempt}.`);
+            return;
+        } catch (err) {
+            context.log.error(`Database connection attempt ${attempt} failed: ${err.message}`);
+            if (attempt < maxRetries) {
+                context.log(`Retrying in ${retryDelay / 1000} seconds...`);
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+            } else {
+                context.log.error('Max retries reached. Throwing error.');
+                throw err;
+            }
+        }
+        attempt++;
+    }
+}
+
