@@ -8,5 +8,3 @@ node_modules/
 logs/
 
 # Ignore Visual Studio Code settings
-.vscode/
-
