@@ -38,7 +38,7 @@ module.exports = async function (context, req) {
             SELECT
                 u.UserID,
                 u.UserName,
-                SUM(ExpectedWin) AS TotalExpectedWins
+                ROUND(SUM(ExpectedWin), 2) AS TotalExpectedWins
             FROM
                 (
                     SELECT
