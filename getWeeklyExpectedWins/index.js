@@ -1,5 +1,6 @@
 const sql = require('mssql');
 const { DefaultAzureCredential } = require('@azure/identity');
+const { getCurrentNFLWeek } = require('../utils'); // Import from utils.js
 
 module.exports = async function (context, req) {
     context.log('Processing request for weekly expected wins...');
@@ -121,19 +122,4 @@ async function connectWithRetry(sqlConfig, context, maxRetries = 5, retryDelay =
         }
         attempt++;
     }
-}
-
-// Function to calculate current NFL week
-function getCurrentNFLWeek() {
-    const seasonStartDate = new Date('2024-09-05T00:00:00Z'); // Adjust this date to the actual season start date
-    const today = new Date();
-    const oneWeekInMillis = 7 * 24 * 60 * 60 * 1000; // milliseconds in one week
-
-    let weekNumber = Math.floor((today - seasonStartDate) / oneWeekInMillis) + 1;
-
-    // Ensure weekNumber is within the valid range
-    if (weekNumber < 1) weekNumber = 1;
-    if (weekNumber > 18) weekNumber = 18; // Adjust if the season has more weeks
-
-    return weekNumber;
 }
