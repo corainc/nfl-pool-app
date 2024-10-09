@@ -2,7 +2,7 @@ const sql = require('mssql');
 const { DefaultAzureCredential } = require('@azure/identity');
 
 module.exports = async function (context, req) {
-    context.log('Calculating theoretical total wins for each user...');
+    context.log('Calculating theoretical total wins and team assignments for each user...');
 
     try {
         // Setup database connection
@@ -24,25 +24,36 @@ module.exports = async function (context, req) {
 
         // Fetch the necessary data
         const result = await sql.query`
-            SELECT dp.PickPosition, dp.UserID, s.TeamID, s.OverallRank, s.Wins
+            SELECT dp.PickPosition, dp.UserID, u.UserName, s.TeamID, t.Name AS TeamName, s.OverallRank, s.Wins
             FROM DraftPicks dp
+            JOIN Users u ON dp.UserID = u.UserID
             JOIN Standings s ON dp.TeamID = s.TeamID
+            JOIN Teams t ON s.TeamID = t.TeamID
             ORDER BY s.OverallRank ASC;
         `;
 
         const draftResults = result.recordset;
 
-        // Draft simulation logic
-        const userWins = {};
-        const processedTeams = new Set();
+        // Initialize data structures for user teams and wins
+        const userDetails = {};
 
+        // Draft simulation logic
+        const processedTeams = new Set();
+        
         // Sort users by their pick positions
         draftResults.sort((a, b) => a.PickPosition - b.PickPosition);
 
-        draftResults.forEach(({ UserID, TeamID, Wins }) => {
+        draftResults.forEach(({ UserID, UserName, TeamID, TeamName, Wins }) => {
             if (!processedTeams.has(TeamID)) {
-                if (!userWins[UserID]) userWins[UserID] = 0;
-                userWins[UserID] += Wins;
+                if (!userDetails[UserID]) {
+                    userDetails[UserID] = {
+                        userName: UserName,
+                        teams: [],
+                        totalWins: 0
+                    };
+                }
+                userDetails[UserID].teams.push({ teamName: TeamName, wins: Wins });
+                userDetails[UserID].totalWins += Wins;
                 processedTeams.add(TeamID);
             }
         });
@@ -50,7 +61,7 @@ module.exports = async function (context, req) {
         context.res = {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
-            body: userWins
+            body: userDetails
         };
     } catch (err) {
         context.log.error(`Error calculating theoretical wins: ${err.message}`);
