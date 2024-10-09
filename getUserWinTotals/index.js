@@ -32,23 +32,26 @@ module.exports = async function (context, req) {
         // Query to fetch user win totals
         const result = await sql.query`
             SELECT
-                u.UserID,
-                u.UserName,
-                SUM(s.Wins) AS Wins,
-                SUM(s.Losses) AS Losses,
-                SUM(s.Ties) AS Ties,
-                CAST(SUM(s.Wins) AS FLOAT) / NULLIF(SUM(s.Wins + s.Losses + s.Ties), 0) AS WinPercentage
-            FROM
-                UserTeams ut
-            JOIN
-                Users u ON ut.UserID = u.UserID
-            JOIN
-                Standings s ON ut.TeamID = s.TeamID
-            GROUP BY
-                u.UserID,
-                u.UserName
-            ORDER BY
-                WinPercentage DESC;
+        u.UserID,
+        u.UserName,
+        SUM(s.Wins) AS Wins,
+        SUM(s.Losses) AS Losses,
+        SUM(s.Ties) AS Ties,
+        ROUND(
+            CAST(SUM(s.Wins) AS FLOAT) / NULLIF(SUM(s.Wins + s.Losses + s.Ties), 0),
+            3
+        ) AS WinPercentage
+    FROM
+        UserTeams ut
+    JOIN
+        Users u ON ut.UserID = u.UserID
+    JOIN
+        Standings s ON ut.TeamID = s.TeamID
+    GROUP BY
+        u.UserID,
+        u.UserName
+    ORDER BY
+        WinPercentage DESC;
         `;
         context.log(`User win totals data retrieved: ${result.recordset.length} records found.`);
 
