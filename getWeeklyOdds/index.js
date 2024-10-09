@@ -1,6 +1,7 @@
 const sql = require('mssql');
 const { DefaultAzureCredential } = require('@azure/identity');
 const { getCurrentNFLWeek } = require('../utils'); // Import from utils.js
+const moment = require('moment-timezone');
 
 module.exports = async function (context, req) {
     try {
@@ -71,11 +72,20 @@ module.exports = async function (context, req) {
         const result = await request.query(query);
         context.log(`Weekly odds data retrieved: ${result.recordset.length} records found.`);
 
+        const formattedData = result.recordset.map(record => {
+            return {
+                ...record,
+                StartTime: moment(record.StartTime).tz('America/Chicago').format('YYYY-MM-DD HH:mm:ss'),
+                dateFetched: moment(record.dateFetched).tz('America/Chicago').format('YYYY-MM-DD HH:mm:ss'),
+            };
+        });
+
         context.res = {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
-            body: result.recordset,
+            body: formattedData,
         };
+
     } catch (err) {
         context.log.error(`Error fetching weekly odds: ${err.message}`);
         context.res = {
