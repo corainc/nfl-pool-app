@@ -21,28 +21,39 @@ module.exports = async function (context, req) {
         await connectWithRetry(sqlConfig, context);
         context.log('Database connected.');
 
-        const result = await sql.query`
-            SELECT dp.UserID, u.UserName, s.TeamID, t.Name AS TeamName, s.OverallRank, s.Wins
+        // Retrieve users and their draft positions
+        const draftOrderResult = await sql.query`
+            SELECT dp.UserID, u.UserName, dp.PickPosition
             FROM DraftPicks dp
             JOIN Users u ON dp.UserID = u.UserID
-            JOIN Standings s ON dp.TeamID = s.TeamID
+            ORDER BY dp.PickPosition;
+        `;
+
+        // Retrieve current team standings
+        const standingsResult = await sql.query`
+            SELECT s.TeamID, t.Name AS TeamName, s.OverallRank, s.Wins
+            FROM Standings s
             JOIN Teams t ON s.TeamID = t.TeamID
             ORDER BY s.OverallRank;
         `;
 
-        const draftResults = result.recordset.map(row => ({
-            UserID: row.UserID,
-            UserName: row.UserName,
-            TeamID: row.TeamID,
-            TeamName: row.TeamName,
-            OverallRank: row.OverallRank,
-            Wins: row.Wins
-        }));
+        // Assign top ranked teams to users based on draft order
+        const theoreticalTeams = draftOrderResult.recordset.map((user, index) => {
+            const team = standingsResult.recordset[index];
+            return {
+                UserID: user.UserID,
+                UserName: user.UserName,
+                TeamID: team.TeamID,
+                TeamName: team.TeamName,
+                OverallRank: team.OverallRank,
+                Wins: team.Wins
+            };
+        });
 
         context.res = {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
-            body: draftResults
+            body: theoreticalTeams
         };
     } catch (err) {
         context.log.error(`Error processing theoretical wins: ${err.message}`);
