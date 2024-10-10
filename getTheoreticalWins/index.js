@@ -22,7 +22,7 @@ module.exports = async function (context, req) {
         context.log('Database connected.');
 
         const result = await sql.query`
-            SELECT dp.PickPosition, dp.UserID, u.UserName, s.TeamID, t.Name AS TeamName, s.OverallRank, s.Wins
+            SELECT dp.UserID, u.UserName, s.TeamID, t.Name AS TeamName, s.OverallRank, s.Wins
             FROM DraftPicks dp
             JOIN Users u ON dp.UserID = u.UserID
             JOIN Standings s ON dp.TeamID = s.TeamID
@@ -30,31 +30,19 @@ module.exports = async function (context, req) {
             ORDER BY s.OverallRank;
         `;
 
-        const draftResults = result.recordset;
-        const userDetails = {};
-        const assignedTeams = new Set();
+        const draftResults = result.recordset.map(row => ({
+            UserID: row.UserID,
+            UserName: row.UserName,
+            TeamID: row.TeamID,
+            TeamName: row.TeamName,
+            OverallRank: row.OverallRank,
+            Wins: row.Wins
+        }));
 
-        draftResults.forEach(row => {
-            if (!userDetails[row.UserID]) {
-                userDetails[row.UserID] = {
-                    userName: row.UserName,
-                    teams: [],
-                    totalWins: 0
-                };
-            }
-
-            if (!assignedTeams.has(row.TeamID)) {
-                userDetails[row.UserID].teams.push({ teamName: row.TeamName, wins: row.Wins });
-                userDetails[row.UserID].totalWins += row.Wins;
-                assignedTeams.add(row.TeamID);
-            }
-        });
-
-        const response = Object.values(userDetails);
         context.res = {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
-            body: response
+            body: draftResults
         };
     } catch (err) {
         context.log.error(`Error processing theoretical wins: ${err.message}`);

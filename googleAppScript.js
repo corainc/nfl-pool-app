@@ -24,8 +24,8 @@ function fetchDataAndWriteToSheet(functionName) {
   sheet.clear();
 
   try {
-    const url = `https://nfldatagatherer.azurewebsites.net/api/${functionName}`;
-    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    const url = `https://nfldatagatherer.azurewebsites.net/api/${functionName}`; 
+    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });       
     const responseCode = response.getResponseCode();
 
     if (responseCode !== 200) {
@@ -37,15 +37,21 @@ function fetchDataAndWriteToSheet(functionName) {
     if (data && data.length > 0) {
       const headers = Object.keys(data[0]);
       sheet.appendRow(headers);
+
       data.forEach(record => {
         const row = headers.map(header => {
           const value = record[header];
-          return Array.isArray(value) ? value.join(', ') : value;
+          if (Array.isArray(value)) {
+            // Extract team information for each object in the array
+            return value.map(team => `${team.teamName} (${team.wins} 
+wins)`).join(', ');
+          }
+          return value;
         });
         sheet.appendRow(row);
       });
     }
   } catch (error) {
-    Logger.log(`Error fetching data for ${functionName}: ${error.message}`);
+    Logger.log(`Error fetching data for ${functionName}: ${error.message}`);     
   }
 }
