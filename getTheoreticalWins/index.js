@@ -2,10 +2,9 @@ const sql = require('mssql');
 const { DefaultAzureCredential } = require('@azure/identity');
 
 module.exports = async function (context, req) {
-    context.log('Calculating theoretical total wins and team assignments for each user...');
+    context.log('Calculating theoretical perfect draft wins for each user...');
 
     try {
-        // Setup database connection
         const credential = new DefaultAzureCredential();
         const token = await credential.getToken('https://database.windows.net/');
 
@@ -22,39 +21,36 @@ module.exports = async function (context, req) {
         await connectWithRetry(sqlConfig, context);
         context.log('Database connected.');
 
-        // Fetch the necessary data
         const result = await sql.query`
             SELECT dp.PickPosition, dp.UserID, u.UserName, s.TeamID, t.Name AS TeamName, s.OverallRank, s.Wins
             FROM DraftPicks dp
             JOIN Users u ON dp.UserID = u.UserID
             JOIN Standings s ON dp.TeamID = s.TeamID
-            JOIN Teams t ON s.TeamID = t.TeamID
-            ORDER BY s.OverallRank ASC;
+            JOIN Teams t ON s.TeamID = t.TeamID;
         `;
 
         const draftResults = result.recordset;
-
-        // Initialize data structures for user teams and wins
         const userDetails = {};
+        const assignedTeams = new Set();
 
-        // Draft simulation logic
-        const processedTeams = new Set();
-        
-        // Sort users by their pick positions
-        draftResults.sort((a, b) => a.PickPosition - b.PickPosition);
+        draftResults.sort((a, b) => a.OverallRank - b.OverallRank);
+        const users = Array.from(new Set(draftResults.map(item => ({ UserID: item.UserID, UserName: item.UserName, PickPosition: item.PickPosition })))).sort((a, b) => a.PickPosition - b.PickPosition);
 
-        draftResults.forEach(({ UserID, UserName, TeamID, TeamName, Wins }) => {
-            if (!processedTeams.has(TeamID)) {
-                if (!userDetails[UserID]) {
-                    userDetails[UserID] = {
-                        userName: UserName,
-                        teams: [],
-                        totalWins: 0
-                    };
+        users.forEach(user => {
+            for (let team of draftResults) {
+                if (!assignedTeams.has(team.TeamID)) {
+                    if (!userDetails[user.UserID]) {
+                        userDetails[user.UserID] = {
+                            userName: user.UserName,
+                            teams: [],
+                            totalWins: 0
+                        };
+                    }
+                    userDetails[user.UserID].teams.push({ teamName: team.TeamName, wins: team.Wins });
+                    userDetails[user.UserID].totalWins += team.Wins;
+                    assignedTeams.add(team.TeamID);
+                    break;
                 }
-                userDetails[UserID].teams.push({ teamName: TeamName, wins: Wins });
-                userDetails[UserID].totalWins += Wins;
-                processedTeams.add(TeamID);
             }
         });
 
@@ -64,10 +60,10 @@ module.exports = async function (context, req) {
             body: userDetails
         };
     } catch (err) {
-        context.log.error(`Error calculating theoretical wins: ${err.message}`);
+        context.log.error(`Error calculating theoretical perfect draft wins: ${err.message}`);
         context.res = {
             status: 500,
-            body: `Error calculating theoretical wins: ${err.message}`
+            body: `Error calculating theoretical perfect draft wins: ${err.message}`
         };
     } finally {
         await sql.close();
