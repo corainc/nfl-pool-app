@@ -2,7 +2,7 @@ const sql = require('mssql');
 const { DefaultAzureCredential } = require('@azure/identity');
 
 module.exports = async function (context, req) {
-    context.log('Calculating theoretical perfect draft wins for each user...');
+    context.log('Processing request for theoretical wins...');
 
     try {
         const credential = new DefaultAzureCredential();
@@ -26,62 +26,41 @@ module.exports = async function (context, req) {
             FROM DraftPicks dp
             JOIN Users u ON dp.UserID = u.UserID
             JOIN Standings s ON dp.TeamID = s.TeamID
-            JOIN Teams t ON s.TeamID = t.TeamID;
+            JOIN Teams t ON s.TeamID = t.TeamID
+            ORDER BY s.OverallRank;
         `;
 
         const draftResults = result.recordset;
         const userDetails = {};
         const assignedTeams = new Set();
 
-        draftResults.sort((a, b) => a.OverallRank - b.OverallRank);
-        const users = Array.from(new Set(draftResults.map(item => ({ UserID: item.UserID, UserName: item.UserName, PickPosition: item.PickPosition })))).sort((a, b) => a.PickPosition - b.PickPosition);
-
-        users.forEach(user => {
-            if (!userDetails[user.UserID]) {
-                userDetails[user.UserID] = {
-                    userName: user.UserName,
+        draftResults.forEach(row => {
+            if (!userDetails[row.UserID]) {
+                userDetails[row.UserID] = {
+                    userName: row.UserName,
                     teams: [],
                     totalWins: 0
                 };
             }
-            
-            draftResults.forEach(team => {
-                if (!assignedTeams.has(team.TeamID)) {
-                    userDetails[user.UserID].teams.push({ teamName: team.TeamName, wins: team.Wins });
-                    userDetails[user.UserID].totalWins += team.Wins;
-                    assignedTeams.add(team.TeamID);
-                }
-            });
-        });
-        
-        // Prepare data for Google Sheets
-        const flattenedData = [];
-        for (let userId in userDetails) {
-            if (userDetails.hasOwnProperty(userId)) {
-                userDetails[userId].teams.forEach(team => {
-                    flattenedData.push([
-                        userDetails[userId].userName,
-                        team.teamName,
-                        team.wins,
-                        userDetails[userId].totalWins
-                    ]);
-                });
-            }
-        }
-        
-        // Replace with Google Sheets data writing logic
-        // writeToGoogleSheets(flattenedData);
 
+            if (!assignedTeams.has(row.TeamID)) {
+                userDetails[row.UserID].teams.push({ teamName: row.TeamName, wins: row.Wins });
+                userDetails[row.UserID].totalWins += row.Wins;
+                assignedTeams.add(row.TeamID);
+            }
+        });
+
+        const response = Object.values(userDetails);
         context.res = {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
-            body: userDetails
+            body: response
         };
     } catch (err) {
-        context.log.error(`Error calculating theoretical perfect draft wins: ${err.message}`);
+        context.log.error(`Error processing theoretical wins: ${err.message}`);
         context.res = {
             status: 500,
-            body: `Error calculating theoretical perfect draft wins: ${err.message}`
+            body: `Error processing theoretical wins: ${err.message}`
         };
     } finally {
         await sql.close();
@@ -89,15 +68,15 @@ module.exports = async function (context, req) {
 };
 
 async function connectWithRetry(sqlConfig, context, maxRetries = 5, retryDelay = 5000) {
-    let attempt = 0;
-    while (attempt < maxRetries) {
+    let attempt = 1;
+    while (attempt <= maxRetries) {
         try {
             await sql.connect(sqlConfig);
-            context.log(`Database connection established.`);
+            context.log(`Database connection established on attempt ${attempt}.`);
             return;
         } catch (err) {
-            context.log.error(`Database connection attempt ${attempt + 1} failed: ${err.message}`);
-            if (attempt < maxRetries - 1) {
+            context.log.error(`Database connection attempt ${attempt} failed: ${err.message}`);
+            if (attempt < maxRetries) {
                 context.log(`Retrying in ${retryDelay / 1000} seconds...`);
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
             } else {
