@@ -37,22 +37,40 @@ module.exports = async function (context, req) {
         const users = Array.from(new Set(draftResults.map(item => ({ UserID: item.UserID, UserName: item.UserName, PickPosition: item.PickPosition })))).sort((a, b) => a.PickPosition - b.PickPosition);
 
         users.forEach(user => {
-            for (let team of draftResults) {
+            if (!userDetails[user.UserID]) {
+                userDetails[user.UserID] = {
+                    userName: user.UserName,
+                    teams: [],
+                    totalWins: 0
+                };
+            }
+            
+            draftResults.forEach(team => {
                 if (!assignedTeams.has(team.TeamID)) {
-                    if (!userDetails[user.UserID]) {
-                        userDetails[user.UserID] = {
-                            userName: user.UserName,
-                            teams: [],
-                            totalWins: 0
-                        };
-                    }
                     userDetails[user.UserID].teams.push({ teamName: team.TeamName, wins: team.Wins });
                     userDetails[user.UserID].totalWins += team.Wins;
                     assignedTeams.add(team.TeamID);
-                    break;
                 }
-            }
+            });
         });
+        
+        // Prepare data for Google Sheets
+        const flattenedData = [];
+        for (let userId in userDetails) {
+            if (userDetails.hasOwnProperty(userId)) {
+                userDetails[userId].teams.forEach(team => {
+                    flattenedData.push([
+                        userDetails[userId].userName,
+                        team.teamName,
+                        team.wins,
+                        userDetails[userId].totalWins
+                    ]);
+                });
+            }
+        }
+        
+        // Replace with Google Sheets data writing logic
+        // writeToGoogleSheets(flattenedData);
 
         context.res = {
             status: 200,
