@@ -73,10 +73,15 @@ module.exports = async function (context, req) {
         context.log(`Weekly odds data retrieved: ${result.recordset.length} records found.`);
 
         const formattedData = result.recordset.map(record => {
+            const startTimeMoment = moment(record.StartTime).tz('America/Chicago');
+            const dateFetchedMoment = moment(record.dateFetched).tz('America/Chicago');
+            
             return {
                 ...record,
-                StartTime: moment(record.StartTime).tz('America/Chicago').format('YYYY-MM-DD HH:mm:ss'),
-                dateFetched: moment(record.dateFetched).tz('America/Chicago').format('YYYY-MM-DD HH:mm:ss'),
+                StartDate: startTimeMoment.format('YYYY-MM-DD'),
+                StartTime: startTimeMoment.format('HH:mm:ss'),
+                DateFetchedDate: dateFetchedMoment.format('YYYY-MM-DD'),
+                DateFetchedTime: dateFetchedMoment.format('HH:mm:ss'),
             };
         });
 
